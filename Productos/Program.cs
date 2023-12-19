@@ -1,5 +1,5 @@
+using DataAccess.Repositories;
 using LoginWebApi.DataAccess;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,14 +11,36 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddScoped<IProductoRepository, ProductoRepository>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 
+// En el método ConfigureServices
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", options =>
+    {
+        options.Authority = "https://localhost:7056/"; // URL base de la API de autenticación
+        options.Audience = "Productos"; // Audience para tu API
+    });
+
+builder.Services.AddAuthorization(); // Si es necesario definir políticas de autorización
+
+
 builder.Services.AddIdentityApiEndpoints<IdentityUser>().AddEntityFrameworkStores<ApplicationDbContext>();
 builder.Services.AddAuthorization();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("NewPolitica", app =>
+    {
+        app.AllowAnyOrigin()
+           .AllowAnyMethod()
+           .AllowAnyHeader();
+    });
+});
 
 var app = builder.Build();
 
@@ -31,8 +53,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapGroup("/Identity").MapIdentityApi<IdentityUser>();
+app.UseRouting();
 
+app.UseCors("NewPolitica");
+
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
